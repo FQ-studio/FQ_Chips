@@ -28,6 +28,7 @@ jobs:
         with:
           files: fq_icevolt_gen1.dtb
           name: "FQ Device Tree Release ${{ github.ref_name }}"
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'v1.0.0-manual' }}
           draft: false
           prerelease: false
         env:
