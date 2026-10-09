@@ -1,0 +1,34 @@
+name: Build and Release FQ Device Tree
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Device Tree Compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y device-tree-compiler
+
+      - name: Compile Full Device Tree Blob (.dtb)
+        run: |
+          dtc -I dts -O dtb -o fq_icevolt_gen1.dtb fq_ecosystem/hardware/dts/fq_icevolt_gen1.dts
+
+      - name: Create GitHub Release (DTB Only)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: fq_icevolt_gen1.dtb
+          name: "FQ Device Tree Release ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

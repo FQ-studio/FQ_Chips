@@ -1,0 +1,44 @@
+/dts-v1/;
+
+/ {
+    #address-cells = <1>;
+    #size-cells = <1>;
+    model = "FQ VoltX 1 & EV Autonomous Ecosystem";
+    compatible = "fq,icevolt-gen1";
+
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        cpu0: cpu@0 {
+            device_type = "cpu";
+            compatible = "riscv";
+            reg = <0>;
+        };
+    };
+
+    memory@80000000 {
+        device_type = "memory";
+        reg = <0x80000000 0x40000000>; /* 1GB RAM Layout Initialization */
+    };
+
+    soc {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        xstar_mailbox: mailbox@50001000 {
+            compatible = "fq,xstar-mailbox";
+            reg = <0x50001000 0x1000>;
+        };
+
+        private_6g: network@60001000 {
+            compatible = "fq,private-6g";
+            reg = <0x60001000 0x1000>;
+        };
+
+        steering_touch: sensor@40003000 {
+            compatible = "fq,steering-touch";
+            reg = <0x40003000 0x1000>;
+        };
+    };
+};
