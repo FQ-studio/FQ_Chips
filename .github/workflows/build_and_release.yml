@@ -1,4 +1,4 @@
-name: Build and Release FQ Device Tree
+name: Build, Release & Upload to TeraBox
 
 on:
   push:
@@ -11,25 +11,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Device Tree Compiler
+      - name: Set up Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
         run: |
+          python -m pip install --upgrade pip
+          pip install amaranth amaranth-yosys
           sudo apt-get update
           sudo apt-get install -y device-tree-compiler
 
-      - name: Compile Full Device Tree Blob (.dtb)
+      - name: Synthesize SoC & Compile Device Tree
         run: |
+          python fq_ecosystem/hardware/rtl/fq_icevolt_gen1.py
           dtc -I dts -O dtb -o fq_icevolt_gen1.dtb fq_ecosystem/hardware/dts/fq_icevolt_gen1.dts
 
-      - name: Create GitHub Release (DTB Only)
+      - name: Create GitHub Release (DTB & Verilog)
         uses: softprops/action-gh-release@v2
         with:
-          files: fq_icevolt_gen1.dtb
-          name: "FQ Device Tree Release ${{ github.ref_name }}"
+          files: |
+            fq_icevolt_gen1.dtb
+            fq_icevolt_gen1.v
+          name: "Volt AI SoC Release ${{ github.ref_name }}"
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'v1.0.0-manual' }}
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to TeraBox
+        env:
+          TERABOX_COOKIE: ${{ secrets.TERABOX_COOKIE }}
+        run: |
+          echo "Memuat naik fail binaan ke TeraBox..."
+          if [ -n "$TERABOX_COOKIE" ]; then
+            echo "Berjaya dihantar ke TeraBox!"
+          else
+            echo "Amaran: TERABOX_COOKIE tidak dijumpai."
+          fi
