@@ -54,26 +54,43 @@ jobs:
 
           ls -la fq_icevolt_gen1.v fq_icevolt_gen1.dtb
 
-      - name: Create Release and Upload Artifacts
+      - name: Create Release via GitHub API
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME="v1.0.0-build$(date +'%Y%m%d%H%M%S')"
-
-          cat << NOTES > release_body.md
-          # 🚀 FQ Ecosystem Open-Source Hardware Release
-          
-          Automated release containing guaranteed structural artifacts.
-          - Verilog RTL: \`fq_icevolt_gen1.v\`
-          - Device Tree Blob: \`fq_icevolt_gen1.dtb\`
-          NOTES
+          REPO="${{ github.repository }}"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "$TAG_NAME"
           git push origin "$TAG_NAME"
 
-          gh release create "$TAG_NAME" fq_icevolt_gen1.v fq_icevolt_gen1.dtb \
-            --title "FQ IceVolt Hardware Release ($TAG_NAME)" \
-            --notes-file release_body.md \
-            --clobber
+          # Cipta Release menggunakan GitHub API REST (Mengelakkan ralat gh CLI)
+          RESPONSE=$(curl -s -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/$REPO/releases \
+            -d "{\"tag_name\":\"$TAG_NAME\",\"name\":\"FQ IceVolt Hardware Release $TAG_NAME\",\"body\":\"Open-source automated release for FQ Ecosystem hardware artifacts.\",\"draft\":false,\"prerelease\":false}")
+
+          # Ambil Release ID daripada respons JSON
+          UPLOAD_URL=$(echo "$RESPONSE" | grep -o '"upload_url": "[^"]*' | head -n 1 | cut -d'"' -f4 | sed 's/{?name,label}//')
+
+          if [ -z "$UPLOAD_URL" ]; then
+            echo "Gagal mendapatkan URL muat naik release!"
+            exit 1
+          fi
+
+          # Muat naik artifak Verilog (.v)
+          curl -s -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: text/plain" \
+            --data-binary @fq_icevolt_gen1.v \
+            "$UPLOAD_URL?name=fq_icevolt_gen1.v"
+
+          # Muat naik artifak Device Tree Blob (.dtb)
+          curl -s -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @fq_icevolt_gen1.dtb \
+            "$UPLOAD_URL?name=fq_icevolt_gen1.dtb"
