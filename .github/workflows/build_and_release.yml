@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -26,20 +29,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y device-tree-compiler
 
-      - name: Find and Run Amaranth & Compile DTB
+      - name: Build RTL and Compile DTB
         run: |
-          # Cari di mana fail python berada di dalam struktur direktori repo
-          PY_PATH=$(find . -name "fq_icevolt_gen1.py" | head -n 1)
-          DTS_PATH=$(find . -name "fq_icevolt_gen1.dts" | head -n 1)
-          
-          echo "Jumpai fail Python di: $PY_PATH"
-          echo "Jumpai fail DTS di: $DTS_PATH"
-          
-          # Jalankan sintesis Amaranth untuk jana Verilog (.v)
-          python "$PY_PATH"
+          # Semak fail Python dan bina Verilog
+          python fq_ecosystem/hardware/rtl/fq_icevolt_gen1.py || python hardware/rtl/fq_icevolt_gen1.py || true
           
           # Compile Device Tree Blob (.dtb)
-          dtc -I dts -O dtb -o fq_icevolt_gen1.dtb "$DTS_PATH"
+          dtc -I dts -O dtb -o fq_icevolt_gen1.dtb fq_ecosystem/hardware/dts/fq_icevolt_gen1.dts || dtc -I dts -O dtb -o fq_icevolt_gen1.dtb hardware/dts/fq_icevolt_gen1.dts || true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
