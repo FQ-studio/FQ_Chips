@@ -28,8 +28,9 @@ jobs:
 
       - name: Synthesize SoC & Compile Device Tree
         run: |
-          python fq_ecosystem/hardware/rtl/fq_icevolt_gen1.py
-          dtc -I dts -O dtb -o fq_icevolt_gen1.dtb fq_ecosystem/hardware/dts/fq_icevolt_gen1.dts
+          # Cari dan jalankan fail dari kedudukan semasa workspace
+          python hardware/rtl/fq_icevolt_gen1.py || python fq_ecosystem/hardware/rtl/fq_icevolt_gen1.py
+          dtc -I dts -O dtb -o fq_icevolt_gen1.dtb hardware/dts/fq_icevolt_gen1.dts || dtc -I dts -O dtb -o fq_icevolt_gen1.dtb fq_ecosystem/hardware/dts/fq_icevolt_gen1.dts
 
       - name: Create GitHub Release (DTB & Verilog)
         uses: softprops/action-gh-release@v2
