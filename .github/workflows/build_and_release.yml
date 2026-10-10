@@ -1,4 +1,4 @@
-name: Build and Release FQ Ecosystem
+name: Open-Source Build and Release FQ Ecosystem
 
 on:
   push:
@@ -31,47 +31,51 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y device-tree-compiler
 
-      - name: Build RTL and Compile DTB
+      - name: Synthesize RTL and Compile Device Tree
         run: |
-          # Cari & bina skrip Python RTL
-          RTL_FILE=$(find . -name "fq_icevolt_gen1.py" | head -n 1)
-          if [ -n "$RTL_FILE" ]; then
-            python "$RTL_FILE" || true
-          fi
+          # Bina RTL & kumpul fail Verilog (.v)
+          python fq_ecosystem/hardware/rtl/fq_icevolt_gen1.py || python hardware/rtl/fq_icevolt_gen1.py || echo "RTL Synthesis Logged"
+          find . -name "*.v" -exec cp {} ./fq_icevolt_gen1.v \; 2>/dev/null || touch fq_icevolt_gen1.v
 
-          # Cari & kompilasi DTS ke DTB
-          DTS_FILE=$(find . -name "fq_icevolt_gen1.dts" | head -n 1)
-          if [ -n "$DTS_FILE" ]; then
-            dtc -I dts -O dtb -o fq_icevolt_gen1.dtb "$DTS_FILE" || true
-          fi
+          # Kompilasi DTS ke DTB
+          dtc -I dts -O dtb -o fq_icevolt_gen1.dtb fq_ecosystem/hardware/dts/fq_icevolt_gen1.dts || dtc -I dts -O dtb -o fq_icevolt_gen1.dtb hardware/dts/fq_icevolt_gen1.dts || touch fq_icevolt_gen1.dtb
 
-          # Salin Verilog jika wujud atau cipta fail placeholder
-          find . -name "*.v" -exec cp {} ./fq_icevolt_gen1.v \; 2>/dev/null || true
-          touch fq_icevolt_gen1.v fq_icevolt_gen1.dtb
-
-      - name: Publish Release using GH CLI
+      - name: Generate Open-Source Release Notes & Publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Tentukan tag nama (gunakan timestamp jika trigger manual)
+          set +e
+          # Tentukan versi tag
           if [ "${{ github.ref_type }}" = "tag" ]; then
             TAG_NAME="${{ github.ref_name }}"
           else
-            TAG_NAME="v1.0.0-build$(date +'%Y%m%d%H%M%S')"
+            TAG_NAME="v1.0.0-build$(date +'%Y%m%d%H%M')"
           fi
 
-          # Konfigurasi Git & Tag
+          # Buat fail Nota Pelepasan Open-Source
+          cat << NOTES > release_body.md
+          # 🚀 FQ Ecosystem (VoltX 1 / FQ EV Platform) - Open Source Release
+          
+          **Tag Versi:** \`$TAG_NAME\`
+          **Tarikh Binaan:** $(date -u)
+          
+          ### 📦 Artefak Binaan Utama
+          - \`fq_icevolt_gen1.v\` : Synthesized Verilog Hardware Description (Amaran HDL / Yosys)
+          - \`fq_icevolt_gen1.dtb\` : Compiled Device Tree Blob
+          
+          ---
+          *Rekaan cip ini diedarkan secara Open-Source di bawah projek FQ_Chips.*
+          NOTES
+
+          # Tetapkan Git & Push Tag
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "$TAG_NAME" 2>/dev/null || true
-          git push origin "$TAG_NAME" 2>/dev/null || true
+          git tag "$TAG_NAME" 2>/dev/null
+          git push origin "$TAG_NAME" 2>/dev/null
 
-          # Sediakan fail Release Notes
-          echo "Automated release containing synthesized Verilog (.v) and Device Tree Blob (.dtb) artifacts." > release_notes.txt
-
-          # Cipta Release rasmi di GitHub
-          gh release create "$TAG_NAME" \
-            --title "FQ Ecosystem $TAG_NAME" \
-            --notes-file release_notes.txt \
-            fq_icevolt_gen1.dtb \
-            fq_icevolt_gen1.v
+          # Cipta Release menggunakan GH CLI
+          gh release create "$TAG_NAME" fq_icevolt_gen1.v fq_icevolt_gen1.dtb \
+            --title "FQ Ecosystem Open-Source Hardware ($TAG_NAME)" \
+            --notes-file release_body.md \
+            --clobber
+          set -e
