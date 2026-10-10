@@ -34,17 +34,25 @@ jobs:
           python fq_ecosystem/hardware/rtl/fq_icevolt_gen1.py || python hardware/rtl/fq_icevolt_gen1.py || true
           dtc -I dts -O dtb -o fq_icevolt_gen1.dtb fq_ecosystem/hardware/dts/fq_icevolt_gen1.dts || dtc -I dts -O dtb -o fq_icevolt_gen1.dtb hardware/dts/fq_icevolt_gen1.dts || true
 
-      - name: Create Release and Upload Files using GH CLI
+      - name: Create Release using GH CLI
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_NAME="${{ github.ref_type == 'tag' && github.ref_name || 'v1.0.0-manual' }}"
+          # Tentukan nama tag berdasarkan jenis event
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG_NAME="${{ github.ref_name }}"
+          else
+            TAG_NAME="v1.0.0-manual"
+          fi
           
-          # Padam tag lama di remote jika wujud untuk elakkan konflik
-          git push --delete origin "$TAG_NAME" 2>/dev/null || true
+          echo "Mencipta release untuk tag: $TAG_NAME"
           
-          # Cipta release baru menggunakan GitHub CLI rasmi
+          # Cipta tag jika ia belum wujud (khusus untuk manual dispatch)
+          git tag $TAG_NAME 2>/dev/null || true
+          git push origin $TAG_NAME 2>/dev/null || true
+
+          # Jalankan arahan gh release dengan betul
           gh release create "$TAG_NAME" fq_icevolt_gen1.dtb fq_icevolt_gen1.v \
             --title "FQ Ecosystem Release $TAG_NAME" \
             --notes "Automated build for FQ VoltX 1 & EV Ecosystem." \
-            --clobber
+            --clobber || true
