@@ -1,4 +1,4 @@
-name: Build, Release & Upload to TeraBox
+name: Build and Release FQ Ecosystem
 
 on:
   push:
@@ -26,32 +26,30 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y device-tree-compiler
 
-      - name: Synthesize SoC & Compile Device Tree
+      - name: Find and Run Amaranth & Compile DTB
         run: |
-          # Cari dan jalankan fail dari kedudukan semasa workspace
-          python hardware/rtl/fq_icevolt_gen1.py || python fq_ecosystem/hardware/rtl/fq_icevolt_gen1.py
-          dtc -I dts -O dtb -o fq_icevolt_gen1.dtb hardware/dts/fq_icevolt_gen1.dts || dtc -I dts -O dtb -o fq_icevolt_gen1.dtb fq_ecosystem/hardware/dts/fq_icevolt_gen1.dts
+          # Cari di mana fail python berada di dalam struktur direktori repo
+          PY_PATH=$(find . -name "fq_icevolt_gen1.py" | head -n 1)
+          DTS_PATH=$(find . -name "fq_icevolt_gen1.dts" | head -n 1)
+          
+          echo "Jumpai fail Python di: $PY_PATH"
+          echo "Jumpai fail DTS di: $DTS_PATH"
+          
+          # Jalankan sintesis Amaranth untuk jana Verilog (.v)
+          python "$PY_PATH"
+          
+          # Compile Device Tree Blob (.dtb)
+          dtc -I dts -O dtb -o fq_icevolt_gen1.dtb "$DTS_PATH"
 
-      - name: Create GitHub Release (DTB & Verilog)
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             fq_icevolt_gen1.dtb
             fq_icevolt_gen1.v
-          name: "Volt AI SoC Release ${{ github.ref_name }}"
+          name: "FQ Ecosystem Release ${{ github.ref_name }}"
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'v1.0.0-manual' }}
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload to TeraBox
-        env:
-          TERABOX_COOKIE: ${{ secrets.TERABOX_COOKIE }}
-        run: |
-          echo "Memuat naik fail binaan ke TeraBox..."
-          if [ -n "$TERABOX_COOKIE" ]; then
-            echo "Berjaya dihantar ke TeraBox!"
-          else
-            echo "Amaran: TERABOX_COOKIE tidak dijumpai."
-          fi
